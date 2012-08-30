@@ -13,23 +13,23 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-      var socket = io.connect('http://localhost');
-      socket.on('change', function(data) {
-          console.log('client received change');
-          refreshGraph();
-      });
-
-      var canviz;
       document.observe('dom:loaded', function() {
-        canviz = new Canviz('graph_container');
-        //canviz.setImagePath('graphs/images/');
-        //canviz.setScale(1);//$F('graph_scale'));
-        refreshGraph();
+          var socket = io.connect('http://localhost');
+          socket.on('connect', function() {
+              refreshGraph();
+          });
+          socket.on('change:{{ repo }}', function(data) {
+              console.log('client received change');
+              refreshGraph();
+          });
        });
 
-      function refreshGraph() {
-        canviz.load('/graph');
-      }
+          var canviz;
+          function refreshGraph() {
+              if (!canviz)
+                canviz = new Canviz('graph_container');
+              canviz.load('/{{ repo }}/graph');
+          }
 
     </script>
   </head>

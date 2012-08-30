@@ -3,7 +3,19 @@
  * Module dependencies.
  */
 
+
+var ROOT = '/Users/kevin/src/';
 var REPO = '/Users/kevin/src/testrepo';
+
+var fs = require('fs');
+
+function dirExistsSync (d) {
+  try { return fs.statSync(d).isDirectory(); }
+  catch (er) { return false; }
+}
+
+if (!dirExistsSync(ROOT))
+    throw 'not existing:'+ROOT;
 
 var express = require('express')
   , routes = require('./routes')
@@ -28,9 +40,22 @@ app.configure('development', function(){
   app.use(express.errorHandler());
 });
 
-app.get('/', routes.index);
-app.get('/graph', function(req, res, next) {
-    var gitviz = require('child_process').spawn('python', ['gitviz.py', REPO]);
+function graphPage(req, res) {
+    var repo = req.params['repo'] || 'testrepo';
+    console.log("RENDERING INDEX", repo);
+    res.render('index', { repo: repo });
+};
+
+app.get('/', function(req, res) {
+    res.redirect('/testrepo');
+});
+
+app.get('/:repo/graph', function(req, res, next) {
+    var repo = req.params.repo;
+    if (!repo) throw 'no repo: ' + repo;
+    watchRepo(repo);
+    repo = ROOT + repo;
+    var gitviz = require('child_process').spawn('python', ['gitviz.py', repo]);
 
     var s = '';
     var stderr_data = '';
@@ -47,6 +72,7 @@ app.get('/graph', function(req, res, next) {
         res.end(s);
     });
 });
+app.get('/:repo', graphPage);
 
 var server = http.createServer(app);
 
@@ -56,21 +82,31 @@ server.listen(app.get('port'), function(){
   console.log("Express server listening on port " + app.get('port'));
 });
 
-var watch = require('watch');
-var timeout;
-watch.watchTree(REPO, {interval: 200}, onChange);
+var _watched ={};
+function watchRepo(repo) {
+    if (_watched[repo]) return;
+    _watched[repo] = true;
 
-function onChange() {
-    console.log('CHANGE');
-    if (timeout) return;
-    timeout = setTimeout(function() {
-        timeout = null;
-        console.log("REPO CHANGE");
-        io.sockets.emit('change');
+    var repodir = ROOT + repo;
+    if (!dirExistsSync(repodir))
+        throw 'not existing: ' + repodir;
+
+    var watch = require('watch');
+    watch.watchTree(repodir, {interval: 200}, function() {
+        onChange(repo);
+    });
+}
+
+var timeouts = {};
+function onChange(repo) {
+    console.log('CHANGE', repo);
+    if (timeouts[repo]) return;
+    timeouts[repo] = setTimeout(function() {
+        timeouts[repo] = null;
+        console.log("REPO CHANGE", repo);
+        io.sockets.emit('change:' + repo);
     }, 100);
 }
 
-
 io.sockets.on('connection', function(socket) {
-    onChange();
 });

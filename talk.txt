@@ -21,6 +21,7 @@ treeishes
 - HEAD@{5}
 - master@{yesterday}
 - HEAD~
+http://git-scm.com/book/en/Git-Tools-Revision-Selection
 
 see what you're about to push to a server
 
