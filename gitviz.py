@@ -2,6 +2,7 @@ import sys
 import xmlrpclib
 import time
 import ubigraph
+import pydot
 
 U = ubigraph.Ubigraph()
 U.clear()
@@ -97,6 +98,8 @@ def sync_shas(repo):
             assert vertices[sha] is vert
             del vertices[sha]
             vert.destroy()
+
+    render_dot()
 
 def emit_git_tree(repo_dir):
     import dulwich

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{ title }}</title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      var socket = io.connect('http://localhost');
+      socket.on('change', function(data) {
+          console.log('client received change');
+          var div = document.createElement('div');
+          div.innerText = 'received change!';
+          document.body.appendChild(div);
+      });
+    </script>
+  </head>
+  <body>
+    <h1>{{ gitviz }}</h1>
+  </body>
+</html>
