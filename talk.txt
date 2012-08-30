@@ -13,6 +13,7 @@ add
 [alias]
     wdiff = diff --word-diff
 
+git status -sb as st
 
 treeishes
 - sha
@@ -32,7 +33,6 @@ viz TODO: TODO
 
 tips from https://help.github.com/categories/52/articles
 .gitignore
-git status -sb
 git-wtf
 word diff
 git log searching with -u and /
