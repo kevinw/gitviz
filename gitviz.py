@@ -9,26 +9,47 @@ import tempfile
 vertices = {}
 edges = {}
 
+def node_opts(**opts):
+    opts.update(
+        fontname='consolas',
+        fontsize='11'
+    )
+    return opts
+
+def edge_opts(**opts):
+    opts.update(
+        labelfontsize='11',
+        labelfloat="True",
+    )
+    return opts
+
 def q(s):
     return s.replace(':', r'\:')
 
-def vertex_opts_for_obj(obj):
-    opts = dict(
-    )
+def vertex_opts_for_obj(obj, **opts):
+    opts = node_opts(**opts)
 
     if obj.type_name == 'commit':
         opts.update(
-            label=q(obj.type_name + ': ' + obj.message)
+            label=q(obj.message),
+            style='filled',
+            fillcolor='#ccffcc'
         )
     elif obj.type_name == 'tree':
         opts.update(
+            shape='folder',
             label='tree',
+            fontsize='9',
             #shape='cube'
+        )
+    elif obj.type_name == 'blob':
+        opts.update(
+            shape='egg',
+            label=q(str(obj))
         )
     else:
         opts.update(
-            #shape='sphere',
-            label=q('blob:'+obj.sha().hexdigest()[:7])
+            label=q(repr(obj))
         )
 
     if 'label' in opts:
@@ -38,14 +59,20 @@ def vertex_opts_for_obj(obj):
 
 graph = pydot.Graph(verbose=True)
 
-def vert_for_sha(objstore, sha):
+def vert_for_sha(objstore, sha, **opts):
     if isinstance(sha, pydot.Node):
         sha = sha.sha
 
     vert = vertices.get(sha)
     obj = objstore[sha]
+
+    if obj.type_name == 'commit':
+        shape = 'note'
+    else:
+        shape = 'ellipse'
+
     if vert is None:
-        vertex_opts = vertex_opts_for_obj(obj)
+        vertex_opts = vertex_opts_for_obj(obj, shape=shape)
         vert = vertices[sha] = pydot.Node(sha, **vertex_opts)
         vert.sha = sha
         graph.add_node(vert)
@@ -57,7 +84,7 @@ def add_edge(a, b, **opts):
     if not isinstance(a, str): a = a.obj.sha().hexdigest()
     if not isinstance(b, str): b = b.obj.sha().hexdigest()
 
-    edge = pydot.Edge(a, b, **opts)
+    edge = pydot.Edge(a, b, **edge_opts(**opts))
     graph.add_edge(edge)
 
     if False:
@@ -91,7 +118,7 @@ def walk_node(objstore, seen, sha):
 
         for parent_sha in obj.parents:
             parent_vert = vert_for_sha(objstore, parent_sha)
-            add_edge(parent_vert, vert)
+            add_edge(vert, parent_vert)
             walk_node(objstore, seen, parent_sha)
 
 def sync_shas(repo):
@@ -108,11 +135,21 @@ def sync_shas(repo):
             del vertices[sha]
             vert.destroy()
 
-    head = repo.head()
-    head_node = pydot.Node('HEAD', label='HEAD', shape='box', style='filled')
-    graph.add_node(head_node)
-    graph.add_edge(pydot.Edge(head_node, head, style='dotted'))
-
+    for ref in repo.refs.keys():
+        if ref.startswith('refs/heads'):
+            label = ref[11:]
+        else:
+            label = ref
+        nopts = node_opts(label=label, shape='diamond', style='filled')
+        if ref == 'HEAD':
+            nopts['fillcolor'] = '#ff3333'
+        head_node = pydot.Node(ref, **nopts)
+        graph.add_node(head_node)
+        try:
+            graph.add_edge(pydot.Edge(head_node, repo.refs[ref], **edge_opts(style='dotted')))
+        except KeyError:
+            if ref == 'HEAD':
+                pass
 
     with tempfile.NamedTemporaryFile(delete=False) as f:
         f.write(graph.to_string())

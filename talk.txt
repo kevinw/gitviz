@@ -1,0 +1,21 @@
+advanced git
+
+viz TODO: TODO
+
+tips from https://help.github.com/categories/52/articles
+.gitignore
+git status -sb
+git-wtf
+git log searching with -u and /
+merging
+- screwing up
+stashing
+losing commits
+- using the reflog
+blame
+index
+windows support
+what have i not committed?
+what are remotes 
+try filtering out SWF history from a web trunk
+git gc --prune=? --aggressive
