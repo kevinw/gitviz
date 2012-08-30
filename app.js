@@ -3,6 +3,7 @@
  * Module dependencies.
  */
 
+var WATCH_INTERVAL_MS = 300;
 
 var ROOT = '/Users/kevin/src/';
 var REPO = '/Users/kevin/src/testrepo';
@@ -92,7 +93,7 @@ function watchRepo(repo) {
         throw 'not existing: ' + repodir;
 
     var watch = require('watch');
-    watch.watchTree(repodir, {interval: 200}, function() {
+    watch.watchTree(repodir, {interval: WATCH_INTERVAL_MS}, function() {
         onChange(repo);
     });
 }

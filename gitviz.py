@@ -19,7 +19,7 @@ def node_opts(**opts):
 def edge_opts(**opts):
     opts.update(
         labelfontsize='11',
-        labelfloat="True",
+        labelfloat="False",
     )
     return opts
 

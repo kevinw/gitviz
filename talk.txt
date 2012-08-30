@@ -1,9 +1,12 @@
 git init
 add movies to MOVIES
 git add MOVIES
-toy story 2
 git ci MOVIES
 git log
+
+rename MOVIES to MOVIES.txt
+
+git checkout -b work
 
 change toy story 2 to 3
 git diff
@@ -14,6 +17,9 @@ add
     wdiff = diff --word-diff
 
 git status -sb as st
+
+git commit with bad message
+git commit --amend
 
 treeishes
 - sha
@@ -55,3 +61,5 @@ show git prompt
 stuff from .gitconfig
 the importance of good commit messages
     - http://25.media.tumblr.com/tumblr_lhpptzlmvQ1qz4sngo1_500.jpg
+
+hub

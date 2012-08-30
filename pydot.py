@@ -1275,10 +1275,6 @@ class Graph(object, Common):
         if not isinstance(graph_node, Node):
             raise TypeError('add_node() received a non node class object: ' + str(graph_node))
 
-        if self.verbose:
-            print >> sys.stderr, 'add_node', graph_node
-
-            
         node = self.get_node(graph_node.get_name())
         
         if not node:
@@ -1377,9 +1373,6 @@ class Graph(object, Common):
         It takes a edge object as its only argument and returns
         None.
         """
-
-        if self.verbose:
-            print >> sys.stderr, 'add_edge', graph_edge
 
         if not isinstance(graph_edge, Edge):
             raise TypeError('add_edge() received a non edge class object: ' + str(graph_edge))
