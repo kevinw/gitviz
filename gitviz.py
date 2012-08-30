@@ -136,17 +136,36 @@ def sync_shas(repo):
             vert.destroy()
 
     for ref in repo.refs.keys():
+        if ref == 'HEAD':
+            continue
         if ref.startswith('refs/heads'):
             label = ref[11:]
+        elif ref.startswith('refs/remotes'):
+            label = 'remote: ' + ref[13:]
         else:
             label = ref
         nopts = node_opts(label=label, shape='diamond', style='filled')
-        if ref == 'HEAD':
-            nopts['fillcolor'] = '#ff3333'
         head_node = pydot.Node(ref, **nopts)
         graph.add_node(head_node)
         try:
             graph.add_edge(pydot.Edge(head_node, repo.refs[ref], **edge_opts(style='dotted')))
+        except KeyError:
+            if ref == 'HEAD':
+                pass
+
+    # do HEAD
+    for ref in repo.refs.keys():
+        if ref != 'HEAD':
+            continue
+        nopts = node_opts(label=ref, shape='diamond', style='filled',
+                          fillcolor='#ff3333', fontcolor='white')
+        head_node = pydot.Node(ref, **nopts)
+        graph.add_node(head_node)
+        symref = repo.refs.read_ref(ref)
+        if symref.startswith('ref: '):
+            symref = symref[5:]
+        try:
+            graph.add_edge(pydot.Edge(head_node, symref, **edge_opts(style='dotted')))
         except KeyError:
             if ref == 'HEAD':
                 pass
