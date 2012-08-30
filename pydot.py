@@ -22,15 +22,12 @@ __author__ = 'Ero Carrera'
 __version__ = '1.0.%d' % int( __revision__[21:-2] )
 __license__ = 'MIT'
 
+import sys
 import os
 import re
 import subprocess
 import tempfile
 import copy
-try:
-    import dot_parser
-except Exception, e:
-    print "Couldn't import dot_parser, loading of dot files will not be possible."
     
 
 
@@ -730,6 +727,8 @@ class Node(object, Common):
     be supported.
     """
 
+    def __repr__(self): return '<Node %s>' % self.obj_dict['name']
+
     def __init__(self, name = '', obj_dict = None, **attrs):
     
         #
@@ -860,6 +859,8 @@ class Edge(object,  Common ):
         
     """
     
+    def __repr__(self):
+        return '<Edge %s -> %s>' % self.obj_dict['points']
 
 
     def __init__(self, src='', dst='', obj_dict=None, **attrs):
@@ -1063,7 +1064,9 @@ class Graph(object, Common):
     
 
     def __init__(self, graph_name='G', obj_dict=None, graph_type='digraph', strict=False,
-        suppress_disconnected=False, simplify=False, **attrs):
+        suppress_disconnected=False, simplify=False, verbose=False, **attrs):
+
+        self.verbose=verbose
 
         if obj_dict is not None:
             self.obj_dict = obj_dict
@@ -1272,6 +1275,9 @@ class Graph(object, Common):
         if not isinstance(graph_node, Node):
             raise TypeError('add_node() received a non node class object: ' + str(graph_node))
 
+        if self.verbose:
+            print >> sys.stderr, 'add_node', graph_node
+
             
         node = self.get_node(graph_node.get_name())
         
@@ -1371,6 +1377,9 @@ class Graph(object, Common):
         It takes a edge object as its only argument and returns
         None.
         """
+
+        if self.verbose:
+            print >> sys.stderr, 'add_edge', graph_edge
 
         if not isinstance(graph_edge, Edge):
             raise TypeError('add_edge() received a non edge class object: ' + str(graph_edge))

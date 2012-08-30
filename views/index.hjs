@@ -1,20 +1,42 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>{{ title }}</title>
+    <title>gitviz</title>
     <link rel='stylesheet' href='/stylesheets/style.css' />
+
+    <!-- canviz -->
+	<link rel="stylesheet" type="text/css" href="/stylesheets/canviz.css" />
+	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/prototype/1.6.0.3/prototype.js"></script>
+	<script type="text/javascript" src="/javascripts/canviz.js"></script>
+	<script type="text/javascript" src="/javascripts/x11colors.js"></script>
+    <!-- end canviz -->
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
       var socket = io.connect('http://localhost');
       socket.on('change', function(data) {
           console.log('client received change');
-          var div = document.createElement('div');
-          div.innerText = 'received change!';
-          document.body.appendChild(div);
+          refreshGraph();
       });
+
+      var canviz;
+      document.observe('dom:loaded', function() {
+        canviz = new Canviz('graph_container');
+        //canviz.setImagePath('graphs/images/');
+        //canviz.setScale(1);//$F('graph_scale'));
+        refreshGraph();
+       });
+
+      function refreshGraph() {
+        canviz.load('/graph');
+      }
+
     </script>
   </head>
   <body>
-    <h1>{{ gitviz }}</h1>
+    <div id="page_container">
+        <div id="graph_container"></div>
+        <div id="debug_output"></div>
+    </div>
   </body>
 </html>

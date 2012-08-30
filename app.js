@@ -29,6 +29,24 @@ app.configure('development', function(){
 });
 
 app.get('/', routes.index);
+app.get('/graph', function(req, res, next) {
+    var gitviz = require('child_process').spawn('python', ['gitviz.py', REPO]);
+
+    var s = '';
+    var stderr_data = '';
+    gitviz.stdout.on('data', function(data) { s = s + data.toString(); });
+    gitviz.stderr.on('data', function(data) {
+        stderr_data = stderr_data + data.toString();
+        console.error('gitviz stderr:', data.toString());
+    });
+    gitviz.on('exit', function(code) {
+        if (code !== 0)
+            return res.send(500, stderr_data);
+
+        res.setHeader('Content-Type', 'text/plain');
+        res.end(s);
+    });
+});
 
 var server = http.createServer(app);
 
@@ -40,7 +58,9 @@ server.listen(app.get('port'), function(){
 
 var watch = require('watch');
 var timeout;
-watch.watchTree(REPO, {interval: 200}, function() {
+watch.watchTree(REPO, {interval: 200}, onChange);
+
+function onChange() {
     console.log('CHANGE');
     if (timeout) return;
     timeout = setTimeout(function() {
@@ -48,9 +68,9 @@ watch.watchTree(REPO, {interval: 200}, function() {
         console.log("REPO CHANGE");
         io.sockets.emit('change');
     }, 100);
+}
 
-});
 
 io.sockets.on('connection', function(socket) {
-    console.log('got connection!');
+    onChange();
 });

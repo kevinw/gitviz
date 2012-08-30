@@ -1,0 +1,12 @@
+body {
+	background: white;
+	margin: 0;
+	padding: 0;
+}
+#graph_container {
+	background: #fff;
+	margin: 0 auto;
+}
+#debug_output {
+	margin: 1em;
+}

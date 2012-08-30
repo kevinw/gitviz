@@ -1,63 +1,72 @@
 import sys
 import xmlrpclib
 import time
-import ubigraph
+import dulwich
 import pydot
-
-U = ubigraph.Ubigraph()
-U.clear()
+import subprocess
+import tempfile
 
 vertices = {}
 edges = {}
 
+def q(s):
+    return s.replace(':', r'\:')
+
 def vertex_opts_for_obj(obj):
     opts = dict(
-        size = 2.0,
-        fontsize = 15
     )
 
     if obj.type_name == 'commit':
         opts.update(
-            color="#ff0000",
-            shape='octahedron',
-            label=obj.message
+            label=q(obj.type_name + ': ' + obj.message)
         )
     elif obj.type_name == 'tree':
         opts.update(
-            label='',
-            shape='cube'
+            label='tree',
+            #shape='cube'
         )
     else:
         opts.update(
-            shape='sphere',
-            label=repr(obj)
+            #shape='sphere',
+            label=q('blob:'+obj.sha().hexdigest()[:7])
         )
+
+    if 'label' in opts:
+        opts['label'] = opts['label'].strip()
 
     return opts
 
+graph = pydot.Graph(verbose=True)
+
 def vert_for_sha(objstore, sha):
-    if isinstance(sha, ubigraph.Vertex):
-        sha = sha.obj.sha().hexdigest()
+    if isinstance(sha, pydot.Node):
+        sha = sha.sha
 
     vert = vertices.get(sha)
     obj = objstore[sha]
     if vert is None:
-        vert = vertices[sha] = U.newVertex(**vertex_opts_for_obj(obj))
+        vertex_opts = vertex_opts_for_obj(obj)
+        vert = vertices[sha] = pydot.Node(sha, **vertex_opts)
+        vert.sha = sha
+        graph.add_node(vert)
 
     vert.obj = obj
     return vert
 
 def add_edge(a, b, **opts):
-    edge_key = a.obj.sha().hexdigest() + '_' + b.obj.sha().hexdigest()
-    edge = edges.get(edge_key)
-    if edge is None:
-        edge = U.newEdge(a, b)
+    if not isinstance(a, str): a = a.obj.sha().hexdigest()
+    if not isinstance(b, str): b = b.obj.sha().hexdigest()
 
-    opts.update(
-        oriented = True,
-        arrow = True
-    )
-    edge.set(**opts)
+    edge = pydot.Edge(a, b, **opts)
+    graph.add_edge(edge)
+
+    if False:
+        opts.update(
+            oriented = True,
+            arrow = True
+        )
+        edge.set(**opts)
+
     return edge
 
 def walk_node(objstore, seen, sha):
@@ -71,19 +80,19 @@ def walk_node(objstore, seen, sha):
         for stat, filename, sha in vert.obj.entries():
             child = vert_for_sha(objstore, sha)
             seen.add(child)
-            add_edge(vert, child, label=filename)
+            add_edge(vert, child, label=q(filename))
             walk_node(objstore, seen, child)
 
     elif obj.type_name == 'commit':
+        tree = obj.tree
+        tree_vert = vert_for_sha(objstore, obj.tree)
+        walk_node(objstore, seen, tree)
+        add_edge(vert, tree_vert)
+
         for parent_sha in obj.parents:
             parent_vert = vert_for_sha(objstore, parent_sha)
             add_edge(parent_vert, vert)
             walk_node(objstore, seen, parent_sha)
-
-            tree = obj.tree
-            tree_vert = vert_for_sha(objstore, obj.tree)
-            walk_node(objstore, seen, tree)
-            add_edge(vert, tree_vert)
 
 def sync_shas(repo):
     objstore = repo.object_store
@@ -99,10 +108,18 @@ def sync_shas(repo):
             del vertices[sha]
             vert.destroy()
 
-    render_dot()
+    head = repo.head()
+    head_node = pydot.Node('HEAD', label='HEAD', shape='box', style='filled')
+    graph.add_node(head_node)
+    graph.add_edge(pydot.Edge(head_node, head, style='dotted'))
+
+
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        f.write(graph.to_string())
+
+    subprocess.call(['dot', '-Txdot', f.name])
 
 def emit_git_tree(repo_dir):
-    import dulwich
     repo = dulwich.repo.Repo(repo_dir)
 
     sync_shas(repo)
