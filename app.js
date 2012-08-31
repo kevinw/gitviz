@@ -1,27 +1,23 @@
-
 /**
- * Module dependencies.
+ * webapp serving graph pages and DOT files
  */
+
+var fs = require('fs'),
+    path = require('path'),
+    express = require('express'),
+    http = require('http'),
+    path = require('path');
 
 var WATCH_INTERVAL_MS = 300;
 
-var ROOT = '/Users/kevin/src/';
-var REPO = '/Users/kevin/src/testrepo';
+if (process.argv.length !== 3)
+    throw "usage: node app.js REPOS_ROOT # (where REPOS_ROOT is the directory above your repositories)";
 
-var fs = require('fs');
-
-function dirExistsSync (d) {
-  try { return fs.statSync(d).isDirectory(); }
-  catch (er) { return false; }
-}
+var ROOT = process.argv[2];
+var DEFAULT_REPO = 'testrepo';
 
 if (!dirExistsSync(ROOT))
     throw 'not existing:'+ROOT;
-
-var express = require('express')
-  , routes = require('./routes')
-  , http = require('http')
-  , path = require('path');
 
 var app = express();
 
@@ -43,19 +39,20 @@ app.configure('development', function(){
 
 function graphPage(req, res) {
     var repo = req.params['repo'] || 'testrepo';
-    console.log("RENDERING INDEX", repo);
-    res.render('index', { repo: repo });
+    res.render('index', {repo: repo});
 };
 
 app.get('/', function(req, res) {
-    res.redirect('/testrepo');
+    res.redirect(DEFAULT_REPO);
 });
 
 app.get('/:repo/graph', function(req, res, next) {
     var repo = req.params.repo;
-    if (!repo) throw 'no repo: ' + repo;
+    if (!repo) throw 'no repo given: ' + repo;
+
     watchRepo(repo);
-    repo = ROOT + repo;
+    repo = path.join(ROOT, repo);
+    console.log("REPO", repo);
     var gitviz = require('child_process').spawn('python', ['gitviz.py', repo]);
 
     var s = '';
@@ -73,6 +70,7 @@ app.get('/:repo/graph', function(req, res, next) {
         res.end(s);
     });
 });
+
 app.get('/:repo', graphPage);
 
 var server = http.createServer(app);
@@ -88,26 +86,30 @@ function watchRepo(repo) {
     if (_watched[repo]) return;
     _watched[repo] = true;
 
-    var repodir = ROOT + repo;
+    var repodir = path.join(ROOT, repo);
     if (!dirExistsSync(repodir))
         throw 'not existing: ' + repodir;
 
-    var watch = require('watch');
-    watch.watchTree(repodir, {interval: WATCH_INTERVAL_MS}, function() {
+    require('watch').watchTree(repodir, {interval: WATCH_INTERVAL_MS}, function() {
         onChange(repo);
     });
 }
 
 var timeouts = {};
 function onChange(repo) {
-    console.log('CHANGE', repo);
     if (timeouts[repo]) return;
     timeouts[repo] = setTimeout(function() {
         timeouts[repo] = null;
-        console.log("REPO CHANGE", repo);
+        console.log("REPO CHANGED", repo);
         io.sockets.emit('change:' + repo);
     }, 100);
 }
 
 io.sockets.on('connection', function(socket) {
 });
+
+function dirExistsSync (d) {
+  try { return fs.statSync(d).isDirectory(); }
+  catch (er) { return false; }
+}
+

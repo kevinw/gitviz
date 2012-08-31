@@ -1,15 +1,18 @@
+'''
+Reads the contents of a git repository and write a DOT graph file to stdout.
+'''
+
 import sys
-import xmlrpclib
-import time
-import dulwich
+import dulwich.repo
 import pydot
 import subprocess
 import tempfile
 
 vertices = {}
-edges = {}
 
 def node_opts(**opts):
+    '''Display options for vertices.'''
+
     opts.update(
         fontname='consolas',
         fontsize='11'
@@ -17,6 +20,8 @@ def node_opts(**opts):
     return opts
 
 def edge_opts(**opts):
+    '''Display options for edges.'''
+
     opts.update(
         labelfontsize='11',
         labelfloat="False",
@@ -24,9 +29,14 @@ def edge_opts(**opts):
     return opts
 
 def q(s):
+    '''pydot seems to not be quoting colons in labels, even though not doing
+    so apparently results in invalid DOT files. quote them here.'''
+
     return s.replace(':', r'\:')
 
 def vertex_opts_for_obj(obj, **opts):
+    '''Return pydot display options for a git repository object.'''
+
     opts = node_opts(**opts)
 
     if obj.type_name == 'commit':
@@ -57,7 +67,7 @@ def vertex_opts_for_obj(obj, **opts):
 
     return opts
 
-graph = pydot.Graph(verbose=True)
+graph = pydot.Graph(verbose=True) # TODO: globals are bad mmmmkay
 
 def vert_for_sha(objstore, sha, **opts):
     if isinstance(sha, pydot.Node):
@@ -80,20 +90,15 @@ def vert_for_sha(objstore, sha, **opts):
     vert.obj = obj
     return vert
 
+def to_sha(vert):
+    if not isinstance(vert, str):
+        return vert.obj.sha().hexdigest()
+
+    return vert
+
 def add_edge(a, b, **opts):
-    if not isinstance(a, str): a = a.obj.sha().hexdigest()
-    if not isinstance(b, str): b = b.obj.sha().hexdigest()
-
-    edge = pydot.Edge(a, b, **edge_opts(**opts))
+    edge = pydot.Edge(to_sha(a), to_sha(b), **edge_opts(**opts))
     graph.add_edge(edge)
-
-    if False:
-        opts.update(
-            oriented = True,
-            arrow = True
-        )
-        edge.set(**opts)
-
     return edge
 
 def walk_node(objstore, seen, sha):
@@ -103,6 +108,7 @@ def walk_node(objstore, seen, sha):
     seen.add(vert)
     obj = vert.obj
 
+    # TODO: visitor pattern with polymorphism instead plz
     if obj.type_name == 'tree':
         for stat, filename, sha in vert.obj.entries():
             child = vert_for_sha(objstore, sha)
@@ -121,67 +127,50 @@ def walk_node(objstore, seen, sha):
             add_edge(vert, parent_vert)
             walk_node(objstore, seen, parent_sha)
 
-def sync_shas(repo):
-    objstore = repo.object_store
+def emit_repo_as_xdot(repo):
+    '''emit xdot on stdout'''
 
+    objstore = repo.object_store
     seen = set()
 
+    # walk everything in the object store. (this means orphaned nodes will show.)
     for sha in objstore:
         walk_node(objstore, seen, sha)
 
-    for sha, vert in vertices.items():
-        if vert not in seen:
-            assert vertices[sha] is vert
-            del vertices[sha]
-            vert.destroy()
-
     for ref in repo.refs.keys():
         if ref == 'HEAD':
-            continue
-        if ref.startswith('refs/heads'):
-            label = ref[11:]
-        elif ref.startswith('refs/remotes'):
-            label = 'remote: ' + ref[13:]
-        else:
-            label = ref
-        nopts = node_opts(label=label, shape='diamond', style='filled')
+            continue # TODO: let this loop handle symbolic refs too
+
+        nopts = node_opts(label=nice_ref_label(ref), shape='diamond', style='filled')
         head_node = pydot.Node(ref, **nopts)
         graph.add_node(head_node)
-        try:
-            graph.add_edge(pydot.Edge(head_node, repo.refs[ref], **edge_opts(style='dotted')))
-        except KeyError:
-            if ref == 'HEAD':
-                pass
+        graph.add_edge(pydot.Edge(head_node, repo.refs[ref], **edge_opts(style='dotted')))
 
-    # do HEAD
-    for ref in repo.refs.keys():
-        if ref != 'HEAD':
-            continue
-        nopts = node_opts(label=ref, shape='diamond', style='filled',
-                          fillcolor='#ff3333', fontcolor='white')
-        head_node = pydot.Node(ref, **nopts)
-        graph.add_node(head_node)
-        symref = repo.refs.read_ref(ref)
-        if symref.startswith('ref: '):
-            symref = symref[5:]
-        try:
-            graph.add_edge(pydot.Edge(head_node, symref, **edge_opts(style='dotted')))
-        except KeyError:
-            if ref == 'HEAD':
-                pass
+    # do HEAD as a special case
+    ref = 'HEAD'
+    nopts = node_opts(label=ref, shape='diamond', style='filled', fillcolor='#ff3333', fontcolor='white')
+    head_node = pydot.Node(ref, **nopts)
+    graph.add_node(head_node)
+    symref = repo.refs.read_ref(ref)
+    if symref.startswith('ref: '):
+        symref = symref[5:]
+    graph.add_edge(pydot.Edge(head_node, symref, **edge_opts(style='dotted')))
 
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        f.write(graph.to_string())
+    # invoke dot -Txdot to turn out DOT file into an xdot file, which canviz is expecting
+    subprocess.Popen(['dot', '-Txdot'], stdin=subprocess.PIPE).communicate(graph.to_string())
 
-    subprocess.call(['dot', '-Txdot', f.name])
+def nice_ref_label(ref):
+    if ref.startswith('refs/heads'):
+        label = ref[11:]
+    elif ref.startswith('refs/remotes'):
+        label = 'remote: ' + ref[13:]
+    else:
+        label = ref
 
-def emit_git_tree(repo_dir):
-    repo = dulwich.repo.Repo(repo_dir)
+    return label
 
-    sync_shas(repo)
-
-def main(repo_Dir):
-    emit_git_tree(repo_dir)
+def main(repo_dir):
+    emit_repo_as_xdot(dulwich.repo.Repo(repo_dir))
 
 if __name__ == '__main__':
     repo_dir = sys.argv[1]
