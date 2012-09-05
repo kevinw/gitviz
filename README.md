@@ -8,7 +8,7 @@ Visualize git repositories as they change, live in the browser.
 Why?
 ----
 
-gitviz might useful as a teaching tool for git.
+gitviz might be useful as a teaching tool for git.
 
 It draws graphviz graphs on &lt;canvas&gt; elements, and updates them as you modify the target git repository on the fly.
 

@@ -6,25 +6,23 @@ var fs = require('fs'),
     path = require('path'),
     express = require('express'),
     http = require('http'),
-    path = require('path');
+    path = require('path'),
+    async = require('async'),
+    gitutil = require('gitutil');
 
 var WATCH_INTERVAL_MS = 300;
-
-if (process.argv.length !== 3)
-    throw "usage: node app.js REPOS_ROOT # (where REPOS_ROOT is the directory above your repositories)";
-
-var ROOT = process.argv[2];
+var ROOT;
+var io;
 var DEFAULT_REPO = 'testrepo';
 
-if (!dirExistsSync(ROOT))
-    throw 'not existing:'+ROOT;
-
 var app = express();
+
+require('./handlebars-helpers.js')(require('hbs'));
 
 app.configure(function(){
   app.set('port', process.env.PORT || 3000);
   app.set('views', __dirname + '/views');
-  app.set('view engine', 'hjs');
+  app.set('view engine', 'hbs');
   app.use(express.favicon());
   app.use(express.logger('dev'));
   app.use(express.bodyParser());
@@ -39,11 +37,14 @@ app.configure('development', function(){
 
 function graphPage(req, res) {
     var repo = req.params['repo'] || 'testrepo';
-    res.render('index', {repo: repo});
+    res.render('repo', {repo: repo});
 };
 
-app.get('/', function(req, res) {
-    res.redirect(DEFAULT_REPO);
+app.get('/', function(req, res, next) {
+    gitutil.listRepos(ROOT, function(err, repos) {
+        if (err) return next(err);
+        res.render('index', {repos: repos});
+    });
 });
 
 app.get('/:repo/graph', function(req, res, next) {
@@ -73,14 +74,6 @@ app.get('/:repo/graph', function(req, res, next) {
 
 app.get('/:repo', graphPage);
 
-var server = http.createServer(app);
-
-var io = require('socket.io').listen(server);
-
-server.listen(app.get('port'), function(){
-  console.log("Express server listening on port " + app.get('port'));
-});
-
 var _watched ={};
 function watchRepo(repo) {
     if (_watched[repo]) return;
@@ -88,7 +81,7 @@ function watchRepo(repo) {
 
     var repodir = path.join(ROOT, repo);
     if (!dirExistsSync(repodir))
-        throw 'not existing: ' + repodir;
+        throw 'The repository root you provided does not not exist: ' + repodir;
 
     require('watch').watchTree(repodir, {interval: WATCH_INTERVAL_MS}, function() {
         onChange(repo);
@@ -100,16 +93,28 @@ function onChange(repo) {
     if (timeouts[repo]) return;
     timeouts[repo] = setTimeout(function() {
         timeouts[repo] = null;
-        console.log("REPO CHANGED", repo);
         io.sockets.emit('change:' + repo);
     }, 100);
 }
-
-io.sockets.on('connection', function(socket) {
-});
 
 function dirExistsSync (d) {
   try { return fs.statSync(d).isDirectory(); }
   catch (er) { return false; }
 }
 
+if (require.main === module) {
+    if (process.argv.length !== 3)
+        throw "usage: node app.js REPOS_ROOT # (where REPOS_ROOT is the directory above your repositories)";
+
+    ROOT = process.argv[2];
+    if (!dirExistsSync(ROOT))
+        throw 'not existing:'+ROOT;
+
+    var server = http.createServer(app);
+
+    io = require('socket.io').listen(server);
+
+    server.listen(app.get('port'), function(){
+      console.log("Express server listening on port " + app.get('port'));
+    });
+}

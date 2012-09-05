@@ -8,6 +8,9 @@ import pydot
 import subprocess
 import tempfile
 
+MAX_NODES = 50
+MAX_BLOB = 200
+
 vertices = {}
 
 def node_opts(**opts):
@@ -53,9 +56,10 @@ def vertex_opts_for_obj(obj, **opts):
             #shape='cube'
         )
     elif obj.type_name == 'blob':
+        label = q(str(obj).decode('ascii', 'ignore').replace('\0', '').replace('\n', '\\n')[:MAX_BLOB])
         opts.update(
             shape='egg',
-            label=q(str(obj))
+            label=label
         )
     else:
         opts.update(
@@ -119,11 +123,13 @@ def walk_node(objstore, seen, sha):
     elif obj.type_name == 'commit':
         tree = obj.tree
         tree_vert = vert_for_sha(objstore, obj.tree)
+        seen.add(tree_vert)
         walk_node(objstore, seen, tree)
         add_edge(vert, tree_vert)
 
         for parent_sha in obj.parents:
             parent_vert = vert_for_sha(objstore, parent_sha)
+            seen.add(parent_vert)
             add_edge(vert, parent_vert)
             walk_node(objstore, seen, parent_sha)
 

@@ -1,0 +1,6 @@
+- check out http://networkx.lanl.gov/pygraphviz/ as an alternative to pydot
+- animate nodes as the graph changes
+- limit number of nodes so we can read repositories of more than "toy" size
+    - what to show, then?
+- add a checkbox for showing blobs, shas
+
