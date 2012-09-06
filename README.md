@@ -25,8 +25,8 @@ Installation
 
     # install dependencies
     cd gitviz
+    git submodule update --init
     npm install
-    pip install dulwich
 
     # start the webserver
     ./run-server PATH_TO_REPOS # where PATH_TO_REPOS is the path above your repositories
