@@ -20,11 +20,13 @@ module.exports = function(hbs) {
         blocks[name] = [];
         return val;
     });
+};
 
+// Register any partials
+var partialsDir = __dirname + '/views/partials';
+if (fs.existsSync(partialsDir)) {
+    fs.readdirSync(partialsDir).forEach(function(filename) {
+        var partial = filename.slice(0, -4);
+        hbs.registerPartial(partial, fs.readFileSync(__dirname + '/views/partials/' + filename).toString());
+    });;
 }
-
-// Register all the partials
-fs.readdirSync(__dirname + '/views/partials').forEach(function(filename) {
-    var partial = filename.slice(0, -4);
-    hbs.registerPartial(partial, fs.readFileSync(__dirname + '/views/partials/' + filename).toString());
-});;
