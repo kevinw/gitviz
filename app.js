@@ -10,6 +10,10 @@ var fs = require('fs'),
     async = require('async'),
     gitutil = require('gitutil');
 
+// ensure that we're using our local dulwich repo, which has fixes we need
+var pythonPathSep = process.platform === 'win32' ? ";" : ":";
+process.env.PYTHONPATH = [path.join(__dirname, 'dulwich'), process.env.PYTHONPATH].join(pythonPathSep);
+
 var WATCH_INTERVAL_MS = 300;
 var ROOT;
 var io;
@@ -54,6 +58,7 @@ app.get('/:repo/graph', function(req, res, next) {
     watchRepo(repo);
     repo = path.join(ROOT, repo);
     console.log("REPO", repo);
+
     var gitviz = require('child_process').spawn('python', ['gitviz.py', repo]);
 
     var s = '';

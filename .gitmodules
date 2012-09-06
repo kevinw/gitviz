@@ -1,0 +1,3 @@
+[submodule "dulwich"]
+	path = dulwich
+	url = git://github.com/kevinw/dulwich.git

@@ -5,6 +5,7 @@ Reads the contents of a git repository and write a DOT graph file to stdout.
 import sys
 import dulwich.repo
 import dulwich.index
+import dulwich.objects
 import pydot
 import subprocess
 import tempfile
@@ -164,8 +165,21 @@ def emit_repo_as_xdot(repo):
     graph.add_edge(pydot.Edge(head_node, symref, **edge_opts(style='dotted')))
 
     # index
+    try:
+        head_tree = repo['HEAD'].tree
+    except KeyError:
+        head_tree = None
+
     index = repo.open_index()
-    changes = index.changes_from_tree(objstore, repo['HEAD'].tree)
+
+    try:
+        changes = list(index.changes_from_tree(objstore, head_tree))
+    except TypeError:
+        # the official dulwich repo throws a TypeError changes_from_tree is
+        # called against an empty tree (None)
+        if head_tree is not None: raise
+        changes = []
+
     if changes:
         index_node = pydot.Node('index', shape='invtriangle', style='filled', fillcolor='#33ff33')
         graph.add_node(index_node)
