@@ -23,12 +23,8 @@ Installation
     # get code
     git clone git://github.com/kevinw/gitviz.git
 
-    # install dependencies
-    cd gitviz
-    git submodule update --init
-    npm install
-
     # start the webserver
+    cd gitviz
     ./run-server PATH_TO_REPOS # where PATH_TO_REPOS is the path above your repositories
 
     # see live graphs in the browser
