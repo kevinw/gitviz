@@ -4,6 +4,7 @@ Reads the contents of a git repository and write a DOT graph file to stdout.
 
 import sys
 import dulwich.repo
+import dulwich.index
 import pydot
 import subprocess
 import tempfile
@@ -161,6 +162,15 @@ def emit_repo_as_xdot(repo):
     if symref.startswith('ref: '):
         symref = symref[5:]
     graph.add_edge(pydot.Edge(head_node, symref, **edge_opts(style='dotted')))
+
+    # index
+    index = repo.open_index()
+    changes = index.changes_from_tree(objstore, repo['HEAD'].tree)
+    if changes:
+        index_node = pydot.Node('index', shape='invtriangle', style='filled', fillcolor='#33ff33')
+        graph.add_node(index_node)
+        for (oldpath, newpath), (oldmode, newmode), (oldsha, newsha) in changes:
+            graph.add_edge(pydot.Edge(index_node, vert_for_sha(objstore, newsha), label=q(newpath)))
 
     # invoke dot -Txdot to turn out DOT file into an xdot file, which canviz is expecting
     subprocess.Popen(['dot', '-Txdot'], stdin=subprocess.PIPE).communicate(graph.to_string())
