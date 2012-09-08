@@ -1,3 +1,6 @@
 [submodule "dulwich"]
 	path = dulwich
 	url = git://github.com/kevinw/dulwich.git
+[submodule "canviz"]
+	path = canviz
+	url = git://github.com/kevinw/canviz.git

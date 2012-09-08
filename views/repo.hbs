@@ -1,6 +1,15 @@
 {{#extend "stylesheets"}}
 <link rel="stylesheet" type="text/css" href="/stylesheets/canviz.css" />
-<script type="text/javascript" src="/javascripts/prototype.js"></script>
+<script type="text/javascript" src="/javascripts/jquery-1.8.1.min.js"></script>
+<script type="text/javascript" src="/javascripts/underscore.js"></script>
+<script type="text/javascript" src="/javascripts/underscore.string.js"></script>
+<script type="text/javascript>
+    var jQuery = jQuery.noConflict();
+</script>
+<script type="text/javascript" src="/javascripts/jquery-1.8.1.min.js"></script>
+<script type="text/javascript">
+    //$.noConflict();
+</script>
 <script type="text/javascript" src="/javascripts/canviz.js"></script>
 <script type="text/javascript" src="/javascripts/x11colors.js"></script>
 {{/extend}}
@@ -8,23 +17,23 @@
 {{#extend "javascript"}}
 <script src="/socket.io/socket.io.js"></script>
 <script>
-  document.observe('dom:loaded', function() {
-      var socket = io.connect('http://localhost');
-      socket.on('connect', function() {
-          refreshGraph();
-      });
-      socket.on('change:{{ repo }}', function(data) {
-          console.log('client received change');
-          refreshGraph();
-      });
-   });
+$(function() {
+    var socket = io.connect('http://localhost');
+    socket.on('connect', function() {
+        refreshGraph();
+    });
+    socket.on('change:{{ repo }}', function(data) {
+        console.log('client received change');
+        refreshGraph();
+    });
+});
 
-      var canviz;
-      function refreshGraph() {
-          if (!canviz)
-            canviz = new Canviz('graph_container');
-          canviz.load('/{{ repo }}/graph');
-      }
+var canviz;
+function refreshGraph() {
+    if (!canviz)
+        canviz = new Canviz('#graph_container');
+    canviz.load('/{{ repo }}/graph');
+}
 
 </script>
 {{/extend}}

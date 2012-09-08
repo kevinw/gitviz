@@ -1,0 +1,7 @@
+#!/bin/bash -xe
+
+pushd canviz
+npm install
+jake --trace
+popd
+cp canviz/build/canviz.js public/javascripts
