@@ -1,11 +1,8 @@
 #!/bin/bash -e
 
-# build and copy canviz
-./build-canviz
-
 # ensure we have node deps
 git submodule update --init
 npm install
 
 # run the server
-./node_modules/supervisor/lib/cli-wrapper.js -p 100 -e "js|py" -n error -- app.js $*
+./node_modules/supervisor/lib/cli-wrapper.js -p 100 -e "js|py" -n error -i canviz/build,public/javascripts/build -- app.js $*

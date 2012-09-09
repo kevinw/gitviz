@@ -19,8 +19,8 @@ def node_opts(**opts):
     '''Display options for vertices.'''
 
     opts.update(
-        fontname='consolas',
-        fontsize='11'
+        fontname='Monaco',
+        fontsize='8'
     )
     return opts
 
@@ -48,6 +48,7 @@ def vertex_opts_for_obj(obj, **opts):
         opts.update(
             label=q(obj.message),
             style='filled',
+            shape='note',
             fillcolor='#ccffcc'
         )
     elif obj.type_name == 'tree':
@@ -55,16 +56,17 @@ def vertex_opts_for_obj(obj, **opts):
             shape='folder',
             label='tree',
             fontsize='9',
-            #shape='cube'
         )
     elif obj.type_name == 'blob':
         label = q(str(obj).decode('ascii', 'ignore').replace('\0', '').replace('\n', '\\n')[:MAX_BLOB])
         opts.update(
+            labeljust='L',
             shape='egg',
             label=label
         )
     else:
         opts.update(
+            shape='ellipse',
             label=q(repr(obj))
         )
 
@@ -82,13 +84,8 @@ def vert_for_sha(objstore, sha, **opts):
     vert = vertices.get(sha)
     obj = objstore[sha]
 
-    if obj.type_name == 'commit':
-        shape = 'note'
-    else:
-        shape = 'ellipse'
-
     if vert is None:
-        vertex_opts = vertex_opts_for_obj(obj, shape=shape)
+        vertex_opts = vertex_opts_for_obj(obj)
         vert = vertices[sha] = pydot.Node(sha, **vertex_opts)
         vert.sha = sha
         graph.add_node(vert)

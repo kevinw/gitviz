@@ -4,4 +4,5 @@ pushd canviz
 npm install
 jake --trace
 popd
-cp canviz/build/canviz.js public/javascripts
+mkdir -p public/javascripts/build
+cp -p canviz/build/canviz.js public/javascripts/build

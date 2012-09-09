@@ -4,11 +4,9 @@ var fs = require('fs'),
 var isGitDir = exports.isGitDir = function(fullPath) {
     var gitDir = path.join(fullPath, '.git');
 
-    console.log('TRUE1', gitDir);
     // check for a normal repository
-    if (fs.existsSync(gitDir)) {
+    if (fs.existsSync(gitDir))
         return true;
-    }
 
     // check for a bare repository
     var bareRepoDirs = ['hooks', 'info', 'objects', 'refs'].map(function(f) {

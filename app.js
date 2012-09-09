@@ -8,12 +8,13 @@ var fs = require('fs'),
     http = require('http'),
     path = require('path'),
     async = require('async'),
-    gitutil = require('gitutil');
+    gitutil = require('./gitutil');
 
 // ensure that we're using our local dulwich repo, which has fixes we need
 var pythonPathSep = process.platform === 'win32' ? ";" : ":";
 process.env.PYTHONPATH = [path.join(__dirname, 'dulwich'), process.env.PYTHONPATH].join(pythonPathSep);
 
+var PRINT_DIFFS = true;
 var WATCH_INTERVAL_MS = 300;
 var ROOT;
 var io;
@@ -51,6 +52,36 @@ app.get('/', function(req, res, next) {
     });
 });
 
+function spawn(cmd, args, opts, cb) {
+    if (cb === undefined && typeof opts === 'function') {
+        cb = opts;
+        opts ={};
+    }
+
+    var proc = require('child_process').spawn(cmd, args);
+
+    var stdoutString = '';
+    if (opts.stdout === 'pipe')
+        proc.stdout.pipe(process.stdout, {end: false});
+    else
+        proc.stdout.on('data', function(data) { stdoutString += data.toString(); });
+
+    if (opts.stderr === 'pipe')
+        proc.stdout.pipe(process.stderr, {end: false});
+
+    if (cb)
+        proc.on('exit', function(code) {
+            if (code !== 0)
+                return cb(cmd + ': non-zero return code ' + code);
+
+            var ret = {code: code};
+            if (opts.stdout !== 'pipe')
+                ret.stdout = stdoutString;
+
+            cb(null, ret);
+        });
+}
+
 app.get('/:repo/graph', function(req, res, next) {
     var repo = req.params.repo;
     if (!repo) throw 'no repo given: ' + repo;
@@ -59,25 +90,29 @@ app.get('/:repo/graph', function(req, res, next) {
     repo = path.join(ROOT, repo);
     console.log("REPO", repo);
 
-    var gitviz = require('child_process').spawn('python', ['gitviz.py', repo]);
-
-    var s = '';
-    var stderr_data = '';
-    gitviz.stdout.on('data', function(data) { s = s + data.toString(); });
-    gitviz.stderr.on('data', function(data) {
-        stderr_data = stderr_data + data.toString();
-        console.error('gitviz stderr:', data.toString());
-    });
-    gitviz.on('exit', function(code) {
-        if (code !== 0)
-            return res.send(500, stderr_data);
-
+    spawn('python', ['gitviz.py', repo], function(err, procRes) {
+        if (err) return res.send(500, err);
+        var dotOutput = procRes.stdout;
+        if (PRINT_DIFFS)
+            process.nextTick(function() { printDiff(dotOutput); });
         res.setHeader('Content-Type', 'text/plain');
-        res.end(s);
+        res.end(dotOutput);
     });
 });
 
 app.get('/:repo', graphPage);
+
+var lastOutputFile = '/tmp/lastGitvizOutput.dot',
+    newOutputFile  = '/tmp/newGitvizOutput.dot';
+
+function printDiff(output) {
+    if (fs.existsSync(lastOutputFile)) {
+        fs.writeFileSync(newOutputFile, output);
+        spawn('git', ['diff', '--color-words', '--no-index', lastOutputFile, newOutputFile], {stdout: 'pipe'});
+    }
+
+    fs.writeFileSync(lastOutputFile, output);
+}
 
 var _watched ={};
 function watchRepo(repo) {
@@ -107,6 +142,18 @@ function dirExistsSync (d) {
   catch (er) { return false; }
 }
 
+function compileCanviz(cb) {
+    var buildCanviz = require('child_process').spawn('./build-canviz');
+    buildCanviz.stdout.on('data', function(data) { console.log(data.toString()); });
+    buildCanviz.stderr.on('data', function(data) { console.error(data.toString()); });
+    buildCanviz.on('exit', function(code) {
+        if (code !== 0)
+            return cb("error building canviz");
+
+        cb(null);
+    });
+}
+
 if (require.main === module) {
     if (process.argv.length !== 3)
         throw "usage: node app.js REPOS_ROOT # (where REPOS_ROOT is the directory above your repositories)";
@@ -115,11 +162,13 @@ if (require.main === module) {
     if (!dirExistsSync(ROOT))
         throw 'not existing:'+ROOT;
 
-    var server = http.createServer(app);
+    compileCanviz(function(err) {
+        if (err) throw err;
 
-    io = require('socket.io').listen(server);
-
-    server.listen(app.get('port'), function(){
-      console.log("Express server listening on port " + app.get('port'));
+        var server = http.createServer(app);
+        io = require('socket.io').listen(server);
+        server.listen(app.get('port'), function(){
+          console.log("Express server listening on port " + app.get('port'));
+        });
     });
 }
