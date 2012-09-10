@@ -99,7 +99,10 @@ def vert_for_sha(objstore, sha, **opts):
         sha = sha.sha
 
     vert = vertices.get(sha)
-    obj = objstore[sha]
+    try:
+        obj = objstore[sha]
+    except KeyError:
+        return None
 
     if vert is None:
         vertex_opts = vertex_opts_for_obj(obj)
@@ -123,7 +126,7 @@ def add_edge(a, b, **opts):
 
 def walk_node(objstore, seen, sha, options):
     vert = vert_for_sha(objstore, sha)
-    if vert in seen: return
+    if vert is None or vert in seen: return
 
     seen.add(vert)
     obj = vert.obj
@@ -133,19 +136,24 @@ def walk_node(objstore, seen, sha, options):
         if options.blobs:
             for stat, filename, sha in vert.obj.entries():
                 child = vert_for_sha(objstore, sha)
-                add_edge(vert, child, label=q('  ' + filename))
-                walk_node(objstore, seen, child, options)
+                if child is not None:
+                    add_edge(vert, child, label=q('  ' + filename))
+                    walk_node(objstore, seen, child, options)
 
     elif obj.type_name == 'commit':
-        tree = obj.tree
-        tree_vert = vert_for_sha(objstore, obj.tree)
-        walk_node(objstore, seen, tree, options)
-        seen.add(tree_vert)
-        add_edge(vert, tree_vert)
+        if options.blobs:
+            tree = obj.tree
+            tree_vert = vert_for_sha(objstore, obj.tree)
+            if tree_vert is not None:
+                walk_node(objstore, seen, tree, options)
+                seen.add(tree_vert)
+                add_edge(vert, tree_vert, weight='1')
 
-        for parent_sha in obj.parents:
+        num_parents=len(obj.parents)
+        for i, parent_sha in enumerate(obj.parents):
             parent_vert = vert_for_sha(objstore, parent_sha)
-            add_edge(vert, parent_vert)
+            weight = num_parents - i + 1
+            add_edge(vert, parent_vert, weight='%s' % weight)
             walk_node(objstore, seen, parent_sha, options)
 
 def emit_repo_as_xdot(repo, options):
@@ -156,7 +164,7 @@ def emit_repo_as_xdot(repo, options):
 
     # walk everything in the object store. (this means orphaned nodes will show.)
     for sha in objstore:
-        if not options.blobs and objstore[sha].type_name == 'blob':
+        if not options.blobs and objstore[sha].type_name in ('blob', 'tree'):
             continue
         walk_node(objstore, seen, sha, options)
 

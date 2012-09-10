@@ -5,6 +5,7 @@ body {
   padding: 0;
 
   height: 100%;
+  background-attachment: fixed;
   background-image: -ms-linear-gradient(top, #FFFFFF 0%, #BDDEEF 100%);
   background-image: -moz-linear-gradient(top, #FFFFFF 0%, #BDDEEF 100%);
   background-image: -o-linear-gradient(top, #FFFFFF 0%, #BDDEEF 100%);
@@ -18,7 +19,7 @@ body {
 
 #graph-controls {
     display: inline-block;
-    position: absolute;
+    position: fixed;
     left: 0;
     bottom: 0;
 
