@@ -15,7 +15,7 @@ var pythonPathSep = process.platform === 'win32' ? ";" : ":";
 process.env.PYTHONPATH = [path.join(__dirname, 'dulwich'), process.env.PYTHONPATH].join(pythonPathSep);
 
 var PRINT_DIFFS = true;
-var WATCH_INTERVAL_MS = 300;
+var WATCH_INTERVAL_MS = 500;
 var ROOT;
 var io;
 var DEFAULT_REPO = 'testrepo';
@@ -24,7 +24,7 @@ var app = express();
 
 require('./handlebars-helpers.js')(require('hbs'));
 
-app.configure(function(){
+app.configure(function() {
   app.set('port', process.env.PORT || 3000);
   app.set('views', __dirname + '/views');
   app.set('view engine', 'hbs');
@@ -94,7 +94,7 @@ app.get('/:repo/graph', function(req, res, next) {
     if (req.query.blobs === 'false')
         extraArgs.push('--no-blobs');
 
-    spawn('python', ['gitviz.py', repo].concat(extraArgs), function(err, procRes) {
+    spawn('python', ['gitviz.py', repo].concat(extraArgs), {stderr: 'pipe'}, function(err, procRes) {
         if (err) return res.send(500, err);
         var dotOutput = procRes.stdout;
         if (PRINT_DIFFS)

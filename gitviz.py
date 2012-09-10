@@ -10,18 +10,22 @@ import pydot
 import subprocess
 import tempfile
 
-MAX_NODES = 50
+DEFAULT_FONTNAME = 'Monaco'
+DEFAULT_FONTSIZE = '8'
+
 MAX_BLOB = 200
 
 vertices = {}
 
+DEFAULT_FONT = dict(
+    fontname=DEFAULT_FONTNAME,
+    fontsize=DEFAULT_FONTSIZE
+)
+
 def node_opts(**opts):
     '''Display options for vertices.'''
 
-    opts.update(
-        fontname='Monaco',
-        fontsize='8'
-    )
+    opts.update(DEFAULT_FONT)
     return opts
 
 def edge_opts(**opts):
@@ -30,7 +34,8 @@ def edge_opts(**opts):
     opts.update(
         labelfontsize='11',
         labelfloat="False",
-    )
+        **DEFAULT_FONT)
+
     return opts
 
 def q(s):
@@ -44,30 +49,41 @@ def vertex_opts_for_obj(obj, **opts):
 
     opts = node_opts(**opts)
 
+    def shortsha():
+        return q(obj.sha().hexdigest()[:20])
+
     if obj.type_name == 'commit':
         opts.update(
             label=q(obj.message),
             style='filled',
             shape='note',
-            fillcolor='#ccffcc'
+            fillcolor='#ccffcc',
+            tooltip=shortsha()
         )
     elif obj.type_name == 'tree':
         opts.update(
             shape='folder',
             label='tree',
-            fontsize='9',
+            fontcolor='#a0a0a0',
+            style='filled',
+            fillcolor='#ffffff',
+            tooltip=shortsha()
         )
     elif obj.type_name == 'blob':
         label = q(str(obj).decode('ascii', 'ignore').replace('\0', '').replace('\n', '\\n')[:MAX_BLOB])
         opts.update(
-            labeljust='L',
-            shape='egg',
-            label=label
+            style='filled',
+            fillcolor='#ffffff',
+            shape='ellipse',
+            label=label,
+            tooltip=shortsha()
         )
     else:
         opts.update(
             shape='ellipse',
-            label=q(repr(obj))
+            label=q(repr(obj)),
+            style='filled',
+            fillcolor='#ffffff'
         )
 
     if 'label' in opts:
@@ -76,6 +92,7 @@ def vertex_opts_for_obj(obj, **opts):
     return opts
 
 graph = pydot.Graph(verbose=True) # TODO: globals are bad mmmmkay
+graph.set_bgcolor('#00000000')
 
 def vert_for_sha(objstore, sha, **opts):
     if isinstance(sha, pydot.Node):
@@ -113,22 +130,21 @@ def walk_node(objstore, seen, sha, options):
 
     # TODO: visitor pattern with polymorphism instead plz
     if obj.type_name == 'tree':
-        for stat, filename, sha in vert.obj.entries():
-            child = vert_for_sha(objstore, sha)
-            seen.add(child)
-            add_edge(vert, child, label=q(filename))
-            walk_node(objstore, seen, child, options)
+        if options.blobs:
+            for stat, filename, sha in vert.obj.entries():
+                child = vert_for_sha(objstore, sha)
+                add_edge(vert, child, label=q('  ' + filename))
+                walk_node(objstore, seen, child, options)
 
     elif obj.type_name == 'commit':
         tree = obj.tree
         tree_vert = vert_for_sha(objstore, obj.tree)
-        seen.add(tree_vert)
         walk_node(objstore, seen, tree, options)
+        seen.add(tree_vert)
         add_edge(vert, tree_vert)
 
         for parent_sha in obj.parents:
             parent_vert = vert_for_sha(objstore, parent_sha)
-            seen.add(parent_vert)
             add_edge(vert, parent_vert)
             walk_node(objstore, seen, parent_sha, options)
 
@@ -148,14 +164,14 @@ def emit_repo_as_xdot(repo, options):
         if ref == 'HEAD':
             continue # TODO: let this loop handle symbolic refs too
 
-        nopts = node_opts(label=nice_ref_label(ref), shape='diamond', style='filled')
+        nopts = node_opts(label=nice_ref_label(ref), shape='diamond', style='filled', tooltip='Branch: %s' % nice_ref_label(ref))
         head_node = pydot.Node(ref, **nopts)
         graph.add_node(head_node)
         graph.add_edge(pydot.Edge(head_node, repo.refs[ref], **edge_opts(style='dotted')))
 
     # do HEAD as a special case
     ref = 'HEAD'
-    nopts = node_opts(label=ref, shape='diamond', style='filled', fillcolor='#ff3333', fontcolor='white')
+    nopts = node_opts(label=ref, shape='diamond', style='filled', fillcolor='#ff3333', fontcolor='white', tooltip='Symbolic Ref: HEAD')
     head_node = pydot.Node(ref, **nopts)
     graph.add_node(head_node)
     symref = repo.refs.read_ref(ref)
@@ -180,10 +196,10 @@ def emit_repo_as_xdot(repo, options):
         changes = []
 
     if changes:
-        index_node = pydot.Node('index', shape='invtriangle', style='filled', fillcolor='#33ff33')
+        index_node = pydot.Node('index', shape='invtriangle', style='filled', fillcolor='#33ff33', fontname=DEFAULT_FONTNAME, fontsize=DEFAULT_FONTSIZE)
         graph.add_node(index_node)
         for (oldpath, newpath), (oldmode, newmode), (oldsha, newsha) in changes:
-            graph.add_edge(pydot.Edge(index_node, vert_for_sha(objstore, newsha), label=q(newpath)))
+            graph.add_edge(pydot.Edge(index_node, vert_for_sha(objstore, newsha), label=q('  ' + newpath), fontname=DEFAULT_FONTNAME, fontsize=DEFAULT_FONTSIZE))
 
     # invoke dot -Txdot to turn out DOT file into an xdot file, which canviz is expecting
     subprocess.Popen(['dot', '-Txdot'], stdin=subprocess.PIPE).communicate(graph.to_string())
