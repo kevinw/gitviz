@@ -58,7 +58,7 @@ def vertex_opts_for_obj(obj, **opts):
             style='filled',
             shape='note',
             fillcolor='#ccffcc',
-            tooltip=shortsha()
+            tooltip='Commit: ' + shortsha()
         )
     elif obj.type_name == 'tree':
         opts.update(
@@ -67,7 +67,7 @@ def vertex_opts_for_obj(obj, **opts):
             fontcolor='#a0a0a0',
             style='filled',
             fillcolor='#ffffff',
-            tooltip=shortsha()
+            tooltip='Tree: ' + shortsha()
         )
     elif obj.type_name == 'blob':
         label = q(str(obj).decode('ascii', 'ignore').replace('\0', '').replace('\n', '\\n')[:MAX_BLOB])
@@ -76,7 +76,7 @@ def vertex_opts_for_obj(obj, **opts):
             fillcolor='#ffffff',
             shape='ellipse',
             label=label,
-            tooltip=shortsha()
+            tooltip='Blob: ' + shortsha()
         )
     else:
         opts.update(
