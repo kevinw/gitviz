@@ -29,9 +29,18 @@ function setupRealtime() {
     });
 }
 
-function bindForm() {
-    $("#graph-controls").change(function() {
-        refreshGraph();
+function bindForm(form) {
+    var onChange = _.debounce(refreshGraph, 50);
+
+    form.change(onChange);
+
+    $(window).keypress(function(e) {
+        if (e.charCode === 'b'.charCodeAt(0)) {
+            var blobsCb = form.find('#blobs');
+            blobsCb.prop("checked", !blobsCb.prop("checked"));
+            onChange();
+            e.preventDefault();
+        }
     });
 }
 
@@ -41,7 +50,7 @@ function formParams() {
 
 $(function() {
     setupRealtime();
-    bindForm();
+    bindForm($('#graph-controls'));
 });
 
 var canviz;
