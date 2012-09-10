@@ -17,7 +17,8 @@
 {{#extend "javascript"}}
 <script src="/socket.io/socket.io.js"></script>
 <script>
-$(function() {
+
+function setupRealtime() {
     var socket = io.connect('http://localhost');
     socket.on('connect', function() {
         refreshGraph();
@@ -26,13 +27,29 @@ $(function() {
         console.log('client received change');
         refreshGraph();
     });
+}
+
+function bindForm() {
+    $("#graph-controls").change(function() {
+        refreshGraph();
+    });
+}
+
+function formParams() {
+    return {blobs: !!$("#graph-controls #blobs").attr('checked')};
+}
+
+$(function() {
+    setupRealtime();
+    bindForm();
 });
 
 var canviz;
 function refreshGraph() {
     if (!canviz)
         canviz = new Canviz('#graph_container');
-    canviz.load('/{{ repo }}/graph');
+
+    canviz.load('/{{ repo }}/graph', formParams());
 }
 
 </script>
@@ -40,5 +57,14 @@ function refreshGraph() {
 
 <div id="page_container">
     <div id="graph_container"></div>
+    <div id="graph-controls">
+        <form method="">
+            <h4>Show:</h4>
+            <div>
+                <input type="checkbox" id="blobs" name="show" value="blobs" checked />
+                <label for="blobs">Blobs</label>
+            </div>
+        </form>
+    </div>
     <div id="debug_output"></div>
 </div>

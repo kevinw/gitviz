@@ -104,7 +104,7 @@ def add_edge(a, b, **opts):
     graph.add_edge(edge)
     return edge
 
-def walk_node(objstore, seen, sha):
+def walk_node(objstore, seen, sha, options):
     vert = vert_for_sha(objstore, sha)
     if vert in seen: return
 
@@ -117,22 +117,22 @@ def walk_node(objstore, seen, sha):
             child = vert_for_sha(objstore, sha)
             seen.add(child)
             add_edge(vert, child, label=q(filename))
-            walk_node(objstore, seen, child)
+            walk_node(objstore, seen, child, options)
 
     elif obj.type_name == 'commit':
         tree = obj.tree
         tree_vert = vert_for_sha(objstore, obj.tree)
         seen.add(tree_vert)
-        walk_node(objstore, seen, tree)
+        walk_node(objstore, seen, tree, options)
         add_edge(vert, tree_vert)
 
         for parent_sha in obj.parents:
             parent_vert = vert_for_sha(objstore, parent_sha)
             seen.add(parent_vert)
             add_edge(vert, parent_vert)
-            walk_node(objstore, seen, parent_sha)
+            walk_node(objstore, seen, parent_sha, options)
 
-def emit_repo_as_xdot(repo):
+def emit_repo_as_xdot(repo, options):
     '''emit xdot on stdout'''
 
     objstore = repo.object_store
@@ -140,7 +140,9 @@ def emit_repo_as_xdot(repo):
 
     # walk everything in the object store. (this means orphaned nodes will show.)
     for sha in objstore:
-        walk_node(objstore, seen, sha)
+        if not options.blobs and objstore[sha].type_name == 'blob':
+            continue
+        walk_node(objstore, seen, sha, options)
 
     for ref in repo.refs.keys():
         if ref == 'HEAD':
@@ -196,9 +198,17 @@ def nice_ref_label(ref):
 
     return label
 
-def main(repo_dir):
-    emit_repo_as_xdot(dulwich.repo.Repo(repo_dir))
+def main(repo_dir, options):
+    emit_repo_as_xdot(dulwich.repo.Repo(repo_dir), options)
+
 
 if __name__ == '__main__':
-    repo_dir = sys.argv[1]
-    main(repo_dir)
+    from optparse import OptionParser
+    parser = OptionParser()
+    parser.add_option("--no-blobs",
+                      action="store_false", dest="blobs", default=True,
+                      help="don't show blobs")
+    options, args = parser.parse_args()
+
+    repo_dir = args[0]
+    main(repo_dir, options)

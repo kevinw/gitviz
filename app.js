@@ -90,7 +90,11 @@ app.get('/:repo/graph', function(req, res, next) {
     repo = path.join(ROOT, repo);
     console.log("REPO", repo);
 
-    spawn('python', ['gitviz.py', repo], function(err, procRes) {
+    var extraArgs = [];
+    if (req.query.blobs === 'false')
+        extraArgs.push('--no-blobs');
+
+    spawn('python', ['gitviz.py', repo].concat(extraArgs), function(err, procRes) {
         if (err) return res.send(500, err);
         var dotOutput = procRes.stdout;
         if (PRINT_DIFFS)

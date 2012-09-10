@@ -3,6 +3,24 @@ body {
   font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
 }
 
-a {
-  color: #00B7FF;
+a { color: #00B7FF; }
+
+#graph-controls { opacity: .2; }
+#graph-controls:hover { opacity: 1; }
+
+#graph-controls {
+    display: inline-block;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+
+    padding: 10px;
+    margin: 10px;
+
+    background: #ffdddd;
+    border: solid 1px #ffaaaa;
+
+    font-size: 10px;
 }
+
+#graph-controls h4 { margin: 0; margin-bottom: 10px; }
