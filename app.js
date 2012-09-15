@@ -1,5 +1,9 @@
 /**
- * webapp serving graph pages and DOT files
+ * gitviz - a mostly-useless git visualizer
+ *
+ * This is an express app that serves a page rendering a visualization of a git
+ * repository. The app watches for changes to the repository, and serves a new
+ * graph image to the browser when they occur.
  */
 
 var fs = require('fs'),
@@ -74,6 +78,7 @@ app.get('/:repo', function(req, res) {
  * for debugging: print the difference between the last DOT output and this one
  */
 function printDiff(output) {
+    // TODO: use a tempfile library, duh.
     var lastOutputFile = '/tmp/lastGitvizOutput.dot',
         newOutputFile  = '/tmp/newGitvizOutput.dot';
 
