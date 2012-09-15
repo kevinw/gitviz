@@ -4,8 +4,7 @@
     "dependencies": {
         "supervisor": "0.4.1", 
         "express": "3.0.0rc3", 
-        "watch": "0.5.1", 
-        "watch-tree": "0.1.1", 
+        "watch": "0.5.1",
         "socket.io": "0.9.10", 
         "node-watch": "0.2.4", 
         "hbs": ">= 1.0.4",

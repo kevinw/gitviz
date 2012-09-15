@@ -14,7 +14,9 @@ require('./handlebars-helpers.js')(require('hbs'));
 var pythonPathSep = process.platform === 'win32' ? ";" : ":";
 process.env.PYTHONPATH = [path.join(__dirname, 'dulwich'), process.env.PYTHONPATH].join(pythonPathSep);
 
-var PRINT_DIFFS = false;
+var PRINT_DIFFS = false,
+    WATCH_INTERVAL_MS = 500;
+
 var ROOT; // where to list repos from
 
 var app = express();
@@ -92,7 +94,7 @@ function watchRepo(repo) {
     if (!dirExistsSync(repodir))
         throw 'The repository root you provided does not not exist: ' + repodir;
 
-    require('fs-watch-tree').watchTree(repodir, function() {
+    require('watch').watchTree(repodir, {interval: WATCH_INTERVAL_MS}, function() {
         onChange(repo);
     });
 }
