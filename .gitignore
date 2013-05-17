@@ -2,3 +2,5 @@ canviz-read-only/
 node_modules/
 public/javascripts/canviz.js
 public/javascripts/build/
+.DS_Store
+*.pyc
