@@ -3,12 +3,12 @@
     "version": "0.0.1", 
     "dependencies": {
         "supervisor": "0.4.1", 
-        "express": "3.0.0rc3", 
+        "express": "3.2.4", 
         "watch": "0.5.1", 
         "watch-tree": "0.1.1", 
         "socket.io": "0.9.10", 
         "node-watch": "0.2.4", 
-        "hbs": ">= 1.0.4",
+        "hbs": ">= 2.1.0",
         "async": ">= 0.1.22"
     }
 }
