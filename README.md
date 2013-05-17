@@ -40,3 +40,12 @@ gitviz is just glue around lots of great libraries:
  * [canviz](http://code.google.com/p/canviz/) draws DOT language as visual graphs in &lt;canvas&gt; tags in the browser
  * [express](http://expressjs.com/) serves the webpage showing the graph
  * [socket.io](http://socket.io/) notifies the browser in realtime when the graph changes
+
+TODO
+----
+
+* The node library "watch" we're using uses polling under the hood. There are definitely better alternatives that hook into filesystem events.
+* Animate the graph when it changes.
+* Show working copy modifications. Maybe an asterisk next to the blobs that differ?
+* Eliminate bottlenecks for non-toy-sized repositories, and make them navigable/intelligible in some way.
+* Make the graph interactive, or somehow have each node show the git command that made it.

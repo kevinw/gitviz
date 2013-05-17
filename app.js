@@ -1,28 +1,29 @@
 /**
- * webapp serving graph pages and DOT files
+ * gitviz - a mostly-useless git visualizer
+ *
+ * This is an express app that serves a page rendering a visualization of a git
+ * repository. The app watches for changes to the repository, and serves a new
+ * graph image to the browser when they occur.
  */
 
 var fs = require('fs'),
     path = require('path'),
     express = require('express'),
     http = require('http'),
-    path = require('path'),
-    async = require('async'),
     gitutil = require('./gitutil');
+
+require('./handlebars-helpers.js')(require('hbs'));
 
 // ensure that we're using our local dulwich repo, which has fixes we need
 var pythonPathSep = process.platform === 'win32' ? ";" : ":";
 process.env.PYTHONPATH = [path.join(__dirname, 'dulwich'), process.env.PYTHONPATH].join(pythonPathSep);
 
-var PRINT_DIFFS = true;
-var WATCH_INTERVAL_MS = 500;
-var ROOT;
-var io;
-var DEFAULT_REPO = 'testrepo';
+var PRINT_DIFFS = false,
+    WATCH_INTERVAL_MS = 500;
+
+var ROOT; // where to list repos from
 
 var app = express();
-
-require('./handlebars-helpers.js')(require('hbs'));
 
 app.configure(function() {
   app.set('port', process.env.PORT || 3000);
@@ -40,11 +41,6 @@ app.configure('development', function(){
   app.use(express.errorHandler());
 });
 
-function graphPage(req, res) {
-    var repo = req.params['repo'] || 'testrepo';
-    res.render('repo', {repo: repo});
-};
-
 app.get('/', function(req, res, next) {
     gitutil.listRepos(ROOT, function(err, repos) {
         if (err) return next(err);
@@ -52,43 +48,12 @@ app.get('/', function(req, res, next) {
     });
 });
 
-function spawn(cmd, args, opts, cb) {
-    if (cb === undefined && typeof opts === 'function') {
-        cb = opts;
-        opts ={};
-    }
-
-    var proc = require('child_process').spawn(cmd, args);
-
-    var stdoutString = '';
-    if (opts.stdout === 'pipe')
-        proc.stdout.pipe(process.stdout, {end: false});
-    else
-        proc.stdout.on('data', function(data) { stdoutString += data.toString(); });
-
-    if (opts.stderr === 'pipe')
-        proc.stdout.pipe(process.stderr, {end: false});
-
-    if (cb)
-        proc.on('exit', function(code) {
-            if (code !== 0)
-                return cb(cmd + ': non-zero return code ' + code);
-
-            var ret = {code: code};
-            if (opts.stdout !== 'pipe')
-                ret.stdout = stdoutString;
-
-            cb(null, ret);
-        });
-}
-
 app.get('/:repo/graph', function(req, res, next) {
     var repo = req.params.repo;
     if (!repo) throw 'no repo given: ' + repo;
 
     watchRepo(repo);
     repo = path.join(ROOT, repo);
-    console.log("REPO", repo);
 
     var extraArgs = [];
     if (req.query.blobs === 'false')
@@ -104,12 +69,19 @@ app.get('/:repo/graph', function(req, res, next) {
     });
 });
 
-app.get('/:repo', graphPage);
+app.get('/:repo', function(req, res) {
+    var repo = req.params['repo'] || 'testrepo';
+    res.render('repo', {repo: repo});
+});
 
-var lastOutputFile = '/tmp/lastGitvizOutput.dot',
-    newOutputFile  = '/tmp/newGitvizOutput.dot';
-
+/**
+ * for debugging: print the difference between the last DOT output and this one
+ */
 function printDiff(output) {
+    // TODO: use a tempfile library, duh.
+    var lastOutputFile = '/tmp/lastGitvizOutput.dot',
+        newOutputFile  = '/tmp/newGitvizOutput.dot';
+
     if (fs.existsSync(lastOutputFile)) {
         fs.writeFileSync(newOutputFile, output);
         spawn('git', ['diff', '--color-words', '--no-index', lastOutputFile, newOutputFile], {stdout: 'pipe'});
@@ -137,7 +109,7 @@ function onChange(repo) {
     if (timeouts[repo]) return;
     timeouts[repo] = setTimeout(function() {
         timeouts[repo] = null;
-        io.sockets.emit('change:' + repo);
+        app.get('io').sockets.emit('change:' + repo);
     }, 100);
 }
 
@@ -146,15 +118,38 @@ function dirExistsSync (d) {
   catch (er) { return false; }
 }
 
-function compileCanviz(cb) {
-    var buildCanviz = require('child_process').spawn('./build-canviz');
-    buildCanviz.stdout.on('data', function(data) { console.log(data.toString()); });
-    buildCanviz.stderr.on('data', function(data) { console.error(data.toString()); });
-    buildCanviz.on('exit', function(code) {
-        if (code !== 0)
-            return cb("error building canviz");
+function spawn(cmd, args, opts, cb) {
+    if (arguments.length === 2) {
+        cb = args;
+        args = [];
+        opts = {};
+    } else if (arguments.length === 3) {
+        cb = opts;
+        opts = {};
+    }
 
-        cb(null);
+    var proc = require('child_process').spawn(cmd, args);
+
+    var stdoutString = '';
+    if (opts.stdout === 'pipe')
+        proc.stdout.pipe(process.stdout, {end: false});
+    else
+        proc.stdout.on('data', function(data) { stdoutString += data.toString(); });
+
+    if (opts.stderr === 'pipe')
+        proc.stdout.pipe(process.stderr, {end: false});
+
+    if (!cb) return;
+
+    proc.on('exit', function(code) {
+        if (code !== 0)
+            return cb(cmd + ': non-zero return code ' + code);
+
+        var ret = {code: code};
+        if (opts.stdout !== 'pipe')
+            ret.stdout = stdoutString;
+
+        cb(null, ret);
     });
 }
 
@@ -166,11 +161,11 @@ if (require.main === module) {
     if (!dirExistsSync(ROOT))
         throw 'not existing:'+ROOT;
 
-    compileCanviz(function(err) {
+    spawn('./build-canviz', function(err) {
         if (err) throw err;
 
         var server = http.createServer(app);
-        io = require('socket.io').listen(server);
+        app.set('io', require('socket.io').listen(server));
         server.listen(app.get('port'), function(){
           console.log("giviz listening on port " + app.get('port'));
         });
